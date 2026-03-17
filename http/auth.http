@@ -1,0 +1,17 @@
+### register
+POST http://localhost:4000/api/register HTTP/1.1
+content-type: application/json
+
+{
+    "username": "yoshino",
+    "password": "123"
+}
+
+### login
+POST http://localhost:4000/api/login HTTP/1.1
+content-type: application/json
+
+{
+    "username": "yoshno",
+    "password": "12"
+}

@@ -1,1 +1,6 @@
 /target
+DEVLOG.md
+/_migrations
+/_http
+.idea
+.env

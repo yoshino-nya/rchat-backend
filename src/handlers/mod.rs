@@ -1,3 +1,4 @@
 pub mod auth;
 pub mod message;
 pub mod ws;
+pub mod user;

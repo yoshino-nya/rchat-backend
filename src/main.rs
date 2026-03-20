@@ -19,6 +19,7 @@ use crate::{
     handlers::{
         auth::{login_handler, register_handler},
         message::{chat_history_handler, chat_list_handler, chat_messages2_handler},
+        user::{get_user_by_id, get_user_by_name},
         ws::ws_handler,
     },
     models::message::ChatMessage,
@@ -74,6 +75,8 @@ pub async fn main() {
         .route("/api/login", post(login_handler))
         .route("/ws", get(ws_handler))
         .route("/api/messages", get(chat_list_handler))
+        .route("/api/users/id/{id}", get(get_user_by_id))
+        .route("/api/users/name/{name}", get(get_user_by_name))
         .route("/api/users/{id}/messages", get(chat_history_handler))
         .route("/api/messages/{id1}/{id2}", get(chat_messages2_handler))
         .with_state(state.clone())

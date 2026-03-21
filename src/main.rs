@@ -18,6 +18,7 @@ use tracing_subscriber;
 use crate::{
     handlers::{
         auth::{login_handler, register_handler},
+        friend::{accept_friend_request, create_friend_request, reject_friend_request},
         message::{chat_history_handler, chat_list_handler, chat_messages2_handler},
         user::{get_user_by_id, get_user_by_name},
         ws::ws_handler,
@@ -79,6 +80,15 @@ pub async fn main() {
         .route("/api/users/name/{name}", get(get_user_by_name))
         .route("/api/users/{id}/messages", get(chat_history_handler))
         .route("/api/messages/{id1}/{id2}", get(chat_messages2_handler))
+        .route("/api/friend_request", post(create_friend_request))
+        .route(
+            "/api/friend_request/{id}/accept",
+            post(accept_friend_request),
+        )
+        .route(
+            "/api/friend_request/{id}/reject",
+            post(reject_friend_request),
+        )
         .with_state(state.clone())
         .layer(cors);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:4000").await.unwrap();

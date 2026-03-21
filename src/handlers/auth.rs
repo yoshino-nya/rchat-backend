@@ -7,6 +7,8 @@ use sqlx::PgPool;
 #[derive(Serialize)]
 struct LoginResponse {
     message: String,
+    user_id: Option<i32>,
+    username: Option<String>,
 }
 
 pub async fn register_handler(
@@ -26,28 +28,34 @@ pub async fn login_handler(
 ) -> impl IntoResponse {
     let result = AuthService::login(&state.pool, &req).await;
     match result {
-        Ok(r) => match r {
-            true => (
-                StatusCode::OK,
-                Json(LoginResponse {
-                    message: "Login successful".to_string(),
-                }),
-            ),
-            false => (
-                StatusCode::UNAUTHORIZED,
-                Json(LoginResponse {
-                    message: "Invalid username or password".to_string(),
-                }),
-            ),
-        },
+        Ok(id) => (
+            StatusCode::OK,
+            Json(LoginResponse {
+                message: "Login successful.".to_string(),
+                user_id: Some(id),
+                username: Some(req.username),
+            }),
+        ),
         Err(e) => {
             tracing::error!("{}", e);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(LoginResponse {
-                    message: "Something went wrong".to_string(),
-                }),
-            )
+            match e {
+                sqlx::Error::RowNotFound => (
+                    StatusCode::NOT_FOUND,
+                    Json(LoginResponse {
+                        message: "账号或密码错误".to_string(),
+                        user_id: None,
+                        username: None,
+                    }),
+                ),
+                _ => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(LoginResponse {
+                        message: "Something went wrong".to_string(),
+                        user_id: None,
+                        username: None,
+                    }),
+                ),
+            }
         }
     }
 }

@@ -1,5 +1,4 @@
 use crate::models::user::User;
-use axum::Json;
 use sqlx::PgPool;
 pub struct UserService;
 

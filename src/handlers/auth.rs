@@ -2,7 +2,6 @@ use crate::services::auth::AuthService;
 use crate::{AppState, models::user::User};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
-use sqlx::PgPool;
 
 #[derive(Serialize)]
 struct LoginResponse {

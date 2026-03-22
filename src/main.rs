@@ -1,6 +1,6 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{get, post, delete},
 };
 use dotenv::dotenv;
 use sqlx::PgPool;
@@ -18,7 +18,10 @@ use tracing_subscriber;
 use crate::{
     handlers::{
         auth::{login_handler, register_handler},
-        friend::{accept_friend_request, create_friend_request, reject_friend_request},
+        friend::{
+            accept_friend_request, create_friend_request, delete_friendship_handler,
+            get_friend_requests, reject_friend_request,
+        },
         message::{chat_history_handler, chat_list_handler, chat_messages2_handler},
         user::{get_user_by_id, get_user_by_name},
         ws::ws_handler,
@@ -81,6 +84,7 @@ pub async fn main() {
         .route("/api/users/{id}/messages", get(chat_history_handler))
         .route("/api/messages/{id1}/{id2}", get(chat_messages2_handler))
         .route("/api/friend_request", post(create_friend_request))
+        .route("/api/users/{id}/friend_requests", get(get_friend_requests))
         .route(
             "/api/friend_request/{id}/accept",
             post(accept_friend_request),
@@ -89,6 +93,7 @@ pub async fn main() {
             "/api/friend_request/{id}/reject",
             post(reject_friend_request),
         )
+        .route("/api/friend_request", delete(delete_friendship_handler))
         .with_state(state.clone())
         .layer(cors);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:4000").await.unwrap();

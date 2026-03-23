@@ -37,3 +37,8 @@ pub struct DeleteFriendshipRequest {
     pub user_a: i32,
     pub user_b: i32,
 }
+
+#[derive(Debug, FromRow)]
+pub struct FriendInfo {
+    pub user_id: i32,
+}

@@ -1,6 +1,6 @@
 use crate::{
     models::friend::{DeleteFriendshipRequest, FriendRequest, Status},
-    services::friend::{delete_friendship, query_friend_requests},
+    services::friend::{delete_friendship, get_friends_service, query_friend_requests},
 };
 use axum::{
     Json,
@@ -8,6 +8,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use sqlx::query;
 
 use crate::{
     AppState,
@@ -32,6 +33,16 @@ pub async fn get_friend_requests(
     Path(user_id): Path<i32>,
 ) -> impl IntoResponse {
     match query_friend_requests(&state.pool, user_id).await {
+        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+pub async fn get_friends_handler(
+    State(state): State<AppState>,
+    Path(user_id): Path<i32>,
+) -> impl IntoResponse {
+    match get_friends_service(&state.pool, user_id).await {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

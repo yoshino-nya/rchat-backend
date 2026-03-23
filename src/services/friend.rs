@@ -1,7 +1,7 @@
 // services/friend.rs
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
-use crate::models::friend::{FriendRequest, Status};
+use crate::models::friend::{FriendInfo, FriendRequest, Status};
 
 pub async fn save_friend_request(pool: &PgPool, request: FriendRequest) -> Result<(), sqlx::Error> {
     sqlx::query(
@@ -14,6 +14,27 @@ pub async fn save_friend_request(pool: &PgPool, request: FriendRequest) -> Resul
     .execute(pool)
     .await?;
     Ok(())
+}
+
+pub async fn get_friends_service(pool: &PgPool, user_id: i32) -> Result<Vec<i32>, sqlx::Error> {
+    let res = sqlx::query(
+        r#"
+        SELECT
+            CASE
+                WHEN user_low = $1 THEN user_high
+                ELSE user_low
+            END AS friend_id
+        FROM friendship
+        WHERE user_low = $1 OR user_high = $1
+    "#,
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .map(|row| row.get::<i32, _>("friend_id"))
+    .collect();
+    Ok(res)
 }
 
 pub async fn query_friend_requests(

@@ -1,9 +1,12 @@
 // services/friend.rs
 use sqlx::{PgPool, Row};
 
-use crate::models::friend::{FriendInfo, FriendRequest, Status};
+use crate::models::friend::{CreateFriendRequest, FriendRequest, Status};
 
-pub async fn save_friend_request(pool: &PgPool, request: FriendRequest) -> Result<(), sqlx::Error> {
+pub async fn save_friend_request(
+    pool: &PgPool,
+    request: CreateFriendRequest,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
         INSERT INTO friend_request (user_from, user_to) VALUES ($1, $2)

@@ -1,5 +1,5 @@
 use crate::{
-    models::friend::{DeleteFriendshipRequest, FriendRequest, Status},
+    models::friend::{CreateFriendRequest, DeleteFriendshipRequest, Status},
     services::friend::{delete_friendship, get_friends_service, query_friend_requests},
 };
 use axum::{
@@ -8,7 +8,6 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use sqlx::query;
 
 use crate::{
     AppState,
@@ -17,7 +16,7 @@ use crate::{
 
 pub async fn create_friend_request(
     State(state): State<AppState>,
-    Json(request): Json<FriendRequest>,
+    Json(request): Json<CreateFriendRequest>,
 ) -> impl IntoResponse {
     match save_friend_request(&state.pool, request).await {
         Ok(_) => (StatusCode::OK, "Friend request created"),

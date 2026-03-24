@@ -27,9 +27,10 @@ pub struct FriendRequest {
     pub created_time: DateTime<Utc>,
 }
 
+#[derive(Debug, Deserialize)]
 pub struct CreateFriendRequest {
-    pub user_low: i32,
-    pub user_high: i32,
+    pub user_from: i32,
+    pub user_to: i32,
 }
 
 #[derive(Debug, Deserialize)]

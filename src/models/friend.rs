@@ -27,6 +27,15 @@ pub struct FriendRequest {
     pub created_time: DateTime<Utc>,
 }
 
+#[derive(Debug, Serialize, FromRow, Deserialize)]
+pub struct FriendRequestResponse {
+    pub user_from: i32,
+    pub user_to: i32,
+    pub status: Status,
+    pub created_time: DateTime<Utc>,
+    pub id: i32,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreateFriendRequest {
     pub user_from: i32,

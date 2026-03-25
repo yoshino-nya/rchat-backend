@@ -23,6 +23,7 @@ use crate::{
             get_friend_requests, get_friends_handler, reject_friend_request,
         },
         message::{chat_history_handler, chat_list_handler, chat_messages2_handler},
+        relationship::get_relationship_handler,
         user::{get_user_by_id, get_user_by_name},
         ws::ws_handler,
     },
@@ -95,6 +96,10 @@ pub async fn main() {
         )
         .route("/api/friend_request", delete(delete_friendship_handler))
         .route("/api/users/{id}/friends", get(get_friends_handler))
+        .route(
+            "/api/relationships/{id1}/{id2}",
+            get(get_relationship_handler),
+        )
         .with_state(state.clone())
         .layer(cors);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:4000").await.unwrap();

@@ -1,7 +1,7 @@
 // services/friend.rs
 use sqlx::{PgPool, Row};
 
-use crate::models::friend::{CreateFriendRequest, FriendRequest, Status};
+use crate::models::friend::{CreateFriendRequest, FriendRequestResponse, Status};
 
 pub async fn save_friend_request(
     pool: &PgPool,
@@ -43,10 +43,10 @@ pub async fn get_friends_service(pool: &PgPool, user_id: i32) -> Result<Vec<i32>
 pub async fn query_friend_requests(
     pool: &PgPool,
     user_id: i32,
-) -> Result<Vec<FriendRequest>, sqlx::Error> {
-    let res: Vec<FriendRequest> = sqlx::query_as(
+) -> Result<Vec<FriendRequestResponse>, sqlx::Error> {
+    let res: Vec<FriendRequestResponse> = sqlx::query_as(
         r#"
-        SELECT user_from, user_to, status, created_time from friend_request
+        SELECT id, user_from, user_to, status, created_time from friend_request
         WHERE user_from = $1 OR user_to = $1
     "#,
     )

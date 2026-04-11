@@ -6,14 +6,14 @@ pub struct AuthService;
 
 impl AuthService {
     pub async fn register(pool: &PgPool, user: &User) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO "user" (username, password)
-            VALUES ($1, $2) 
-            "#,
-            user.username,
-            user.password
+            VALUES ($1, $2)
+        "#,
         )
+        .bind(&user.username)
+        .bind(&user.password)
         .execute(pool)
         .await?;
         Ok(())

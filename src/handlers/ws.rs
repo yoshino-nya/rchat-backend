@@ -1,7 +1,12 @@
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 // handlers/ws.rs
-use crate::{AppState, models::message::ChatMessage, services::message::MessageService};
+use crate::{
+    AppState,
+    models::message::{ChatMessageResponse, CreateChatMessage},
+    services::message::MessageService,
+};
 use axum::{
     extract::{
         Query, State,
@@ -13,23 +18,23 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct WsQuery {
-    user_from: i32,
+    user_id: i32,
 }
 
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Query(query): Query<WsQuery>,
 ) -> impl IntoResponse {
-    let user_from = query.user_from;
-    if user_from <= 0 {
+    let user_id = query.user_id;
+    if user_id <= 0 {
         return axum::http::StatusCode::BAD_REQUEST.into_response();
     }
-    ws.on_upgrade(move |socket| handle_socket(socket, user_from, state))
+    ws.on_upgrade(move |socket| handle_socket(socket, user_id, state))
 }
 
-async fn handle_socket(mut socket: WebSocket, my_username: i32, state: AppState) {
-    let (my_tx, mut my_rx) = mpsc::channel::<ChatMessage>(32);
+async fn handle_socket(mut socket: WebSocket, my_username: i32, state: Arc<AppState>) {
+    let (my_tx, mut my_rx) = mpsc::channel::<ChatMessageResponse>(32);
     {
         let mut clients = state.clients.write().await;
         clients.insert(my_username.clone(), my_tx);
@@ -41,16 +46,13 @@ async fn handle_socket(mut socket: WebSocket, my_username: i32, state: AppState)
             Some(Ok(msg)) = socket.recv() => {
                 match msg {
                     Message::Text(text) => {
-                        match serde_json::from_str::<ChatMessage>(&text) {
-                            Ok(mut chat_msg) => {
-                                chat_msg.user_from = my_username.clone();
+                        match serde_json::from_str::<CreateChatMessage>(&text) {
+                            Ok(mut create_msg) => {
+                                create_msg.sender_id = my_username;
 
-                                let _ = MessageService::save_message(&state.pool, chat_msg.clone()).await;
-
-                                if let Err(e) = state.tx.send(chat_msg) {
-                                    eprintln!("Send fail: {}", e);
-                                }
-
+                                let saved = MessageService::save_message(&state.pool, create_msg.clone()).await;
+                                tracing::info!("{:?}", create_msg);
+                                
                             }
                             Err(e) => {
                                 eprint!("Invalid message: {}", e);

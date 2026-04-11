@@ -1,7 +1,7 @@
 // services/message.rs
 use sqlx::PgPool;
 
-use crate::ChatMessage;
+use crate::{ChatMessage, models::message::CreateChatMessage};
 
 pub struct MessageService;
 
@@ -49,20 +49,22 @@ impl MessageService {
         Ok(res)
     }
 
-    pub async fn save_message(pool: &PgPool, chat_msg: ChatMessage) -> Result<bool, sqlx::Error> {
-        let ok = sqlx::query(
+    pub async fn save_message(
+        pool: &PgPool,
+        chat_msg: CreateChatMessage,
+    ) -> Result<bool, sqlx::Error> {
+        let ok: String = sqlx::query_scalar(
             r#"
-            INSERT INTO "chat_message" (user_from, user_to, content) VALUES ($1, $2, $3)
+            INSERT INTO "chat_message" (sender_id, session_id, content) VALUES ($1, $2, $3)
+            RETURNING created_time
             "#,
         )
-        .bind(chat_msg.user_from)
-        .bind(chat_msg.user_to)
+        .bind(chat_msg.sender_id)
+        .bind(chat_msg.session_id)
         .bind(chat_msg.content)
-        .execute(pool)
+        .fetch_one(pool)
         .await?;
-        match ok.rows_affected() {
-            0 => Ok(false),
-            _ => Ok(true),
-        }
+        tracing::info!("{:?}", ok);
+        Ok(true)
     }
 }

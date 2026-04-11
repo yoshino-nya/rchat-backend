@@ -2,6 +2,7 @@ use crate::services::auth::AuthService;
 use crate::{AppState, models::user::User};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
+use std::sync::Arc;
 
 #[derive(Serialize)]
 struct LoginResponse {
@@ -11,7 +12,7 @@ struct LoginResponse {
 }
 
 pub async fn register_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<User>,
 ) -> Result<StatusCode, StatusCode> {
     AuthService::register(&state.pool, &req)
@@ -22,7 +23,7 @@ pub async fn register_handler(
 }
 
 pub async fn login_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<User>,
 ) -> impl IntoResponse {
     let result = AuthService::login(&state.pool, &req).await;

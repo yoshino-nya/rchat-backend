@@ -6,3 +6,9 @@ pub struct User {
     pub username: String,
     pub password: String,
 }
+
+#[derive(Debug, sqlx::FromRow, Serialize)]
+pub struct UserResponse {
+    pub id: i32,
+    pub username: String,
+}

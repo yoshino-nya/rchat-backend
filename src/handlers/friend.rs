@@ -8,6 +8,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use std::sync::Arc;
 
 use crate::{
     AppState,
@@ -15,7 +16,7 @@ use crate::{
 };
 
 pub async fn create_friend_request(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(request): Json<CreateFriendRequest>,
 ) -> impl IntoResponse {
     match save_friend_request(&state.pool, request).await {
@@ -28,7 +29,7 @@ pub async fn create_friend_request(
 }
 
 pub async fn get_friend_requests(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> impl IntoResponse {
     match query_friend_requests(&state.pool, user_id).await {
@@ -38,7 +39,7 @@ pub async fn get_friend_requests(
 }
 
 pub async fn get_friends_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> impl IntoResponse {
     match get_friends_service(&state.pool, user_id).await {
@@ -48,7 +49,7 @@ pub async fn get_friends_handler(
 }
 
 pub async fn accept_friend_request(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
 ) -> impl IntoResponse {
     match manage_friend_request(&state.pool, id, Status::Accepted).await {
@@ -61,7 +62,7 @@ pub async fn accept_friend_request(
 }
 
 pub async fn reject_friend_request(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
 ) -> impl IntoResponse {
     match manage_friend_request(&state.pool, id, Status::Rejected).await {
@@ -74,7 +75,7 @@ pub async fn reject_friend_request(
 }
 
 pub async fn delete_friendship_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(req): Json<DeleteFriendshipRequest>,
 ) -> impl IntoResponse {
     let (mut user_a, mut user_b) = (req.user_a, req.user_b);

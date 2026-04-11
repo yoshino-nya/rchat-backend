@@ -5,9 +5,10 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use std::sync::Arc;
 
 pub async fn get_relationship_handler(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Path((mut user_id_1, mut user_id_2)): Path<(i32, i32)>,
 ) -> impl IntoResponse {
     if user_id_1 > user_id_2 {

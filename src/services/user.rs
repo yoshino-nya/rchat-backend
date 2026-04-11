@@ -1,4 +1,4 @@
-use crate::models::user::User;
+use crate::models::user::{User, UserResponse};
 use sqlx::PgPool;
 pub struct UserService;
 
@@ -28,5 +28,22 @@ impl UserService {
             Some(user) => Ok(user),
             None => Err(sqlx::Error::RowNotFound),
         }
+    }
+    pub async fn query_users_by_name(
+        pool: &PgPool,
+        username: String,
+    ) -> Result<Vec<UserResponse>, sqlx::Error> {
+        let res = sqlx::query_as(
+            r#"
+            SELECT id, username
+            FROM "user"
+            WHERE username ILIKE $1
+            LIMIT 20
+        "#,
+        )
+        .bind(format!("%{}%", username))
+        .fetch_all(pool)
+        .await?;
+        Ok(res)
     }
 }

@@ -1,4 +1,8 @@
-use crate::{AppState, services::message::MessageService};
+use crate::{
+    AppState,
+    models::{message::ChatMessageResponse, response::ApiResponse},
+    services::message::MessageService,
+};
 use axum::{
     Json,
     extract::{Path, State},
@@ -6,6 +10,7 @@ use axum::{
     response::IntoResponse,
 };
 use std::sync::Arc;
+use uuid::Uuid;
 
 // GET /api/meesages
 pub async fn chat_list_handler(State(state): State<Arc<AppState>>) -> impl IntoResponse {
@@ -16,26 +21,61 @@ pub async fn chat_list_handler(State(state): State<Arc<AppState>>) -> impl IntoR
     }
 }
 
-// GET /api/users/{id}/messages
-pub async fn chat_history_handler(
+pub async fn session_messages_handler(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<i32>,
+    Path(session_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    let res = MessageService::get_user_chat_history(&state.pool, id).await;
-    match res {
-        Ok(list) => Json(list).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    match MessageService::get_session_messages(&state.pool, session_id).await {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, ?session_id, "获取聊天记录失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取聊天记录失败".to_string(),
+                    data: None::<Vec<ChatMessageResponse>>,
+                }),
+            )
+        }
     }
 }
 
-// GET /api/messages/{id1}/{id2}
-pub async fn chat_messages2_handler(
+pub async fn get_message(
     State(state): State<Arc<AppState>>,
-    Path((usre_id1, user_id2)): Path<(i32, i32)>,
+    Path(message_id): Path<i32>,
 ) -> impl IntoResponse {
-    let res = MessageService::get_messages2(&state.pool, usre_id1, user_id2).await;
+    let res: Result<Vec<ChatMessageResponse>, _> = sqlx::query_as(
+        r#"
+        SELECT id, sender_id, session_id, content, created_time
+        FROM chat_message WHERE id = $1
+    "#,
+    )
+    .bind(message_id)
+    .fetch_all(&state.pool)
+    .await;
     match res {
-        Ok(list) => Json(list).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, "获取消息失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取消息失败".to_string(),
+                    data: None,
+                }),
+            )
+        }
     }
 }

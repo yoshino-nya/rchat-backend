@@ -8,7 +8,13 @@ use tower_http::cors::{AllowMethods, Any, CorsLayer};
 
 use crate::{
     handlers::{
-        auth::*, friend::*, message::*, relationship::*, session::get_session_id, user::*, ws::*,
+        auth::*,
+        friend::*,
+        message::*,
+        relationship::*,
+        session::{get_session_id, get_user_sessions},
+        user::*,
+        ws::*,
     },
     state::AppState,
 };
@@ -26,8 +32,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/messages", get(chat_list_handler))
         .route("/api/users/id/{id}", get(get_user_by_id))
         .route("/api/users/name/{name}", get(get_user_by_name))
-        .route("/api/users/{id}/messages", get(chat_history_handler))
-        .route("/api/messages/{id1}/{id2}", get(chat_messages2_handler))
+        .route("/api/sessions/{session_id}", get(session_messages_handler))
         .route("/api/friend_request", post(create_friend_request))
         .route("/api/users/{id}/friend_requests", get(get_friend_requests))
         .route(
@@ -46,6 +51,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         )
         .route("/api/users/search", get(search_user_by_name))
         .route("/api/sessions/private", post(get_session_id))
+        .route("/api/users/{id}/sessions", get(get_user_sessions))
+        .route("/api/messages/{message_id}", get(get_message))
         .with_state(state)
         .layer(cors)
 }

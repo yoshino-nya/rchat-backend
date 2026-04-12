@@ -18,7 +18,7 @@ pub struct CreateChatMessage {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ChatMessageResponse {
     pub id: i32,
     pub sender_id: i32,

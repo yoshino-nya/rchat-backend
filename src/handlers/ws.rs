@@ -51,11 +51,18 @@ async fn handle_socket(mut socket: WebSocket, my_username: i32, state: Arc<AppSt
                                 create_msg.sender_id = my_username;
 
                                 let saved = MessageService::save_message(&state.pool, create_msg.clone()).await;
-                                tracing::info!("{:?}", create_msg);
-                                
+                                tracing::info!(?saved, ?create_msg);
+                                match saved {
+                                    Ok(msg) => {
+                                        let _ = state.tx.send(msg);
+                                    },
+                                    Err(e) => {
+                                        tracing::error!(%e, ?create_msg,"发送消息失败");
+                                    }
+                                }
                             }
                             Err(e) => {
-                                eprint!("Invalid message: {}", e);
+                                tracing::error!(%e, ?text, "错误的消息格式")
                             }
                         }
                     }

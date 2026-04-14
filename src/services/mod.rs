@@ -3,4 +3,5 @@ pub mod friend;
 pub mod message;
 pub mod relationship;
 pub mod session;
+pub mod upload;
 pub mod user;

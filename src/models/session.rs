@@ -16,4 +16,5 @@ pub struct SessionResponse {
     session_type: ChatSessionType,
     last_msg: i32,
     uuid: Uuid,
+    name: String,
 }

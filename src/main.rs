@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{RwLock, broadcast};
 
 use crate::{
-    db::init_db, models::message::ChatMessage, router::build_router, state::AppState,
+    db::init_db, router::build_router, state::AppState,
     tasks::spawn_message_dispatcher,
 };
 mod db;

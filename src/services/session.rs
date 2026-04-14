@@ -37,14 +37,20 @@ pub async fn create_session(
     session_type: ChatSessionType,
 ) -> Result<Uuid, sqlx::Error> {
     let uid = Uuid::new_v4();
+    let name = users
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<String>>()
+        .join("、");
     sqlx::query(
         r#"
-        INSERT INTO chat_session (type, uuid)
-        VALUES ($1, $2)
+        INSERT INTO chat_session (type, uuid, name)
+        VALUES ($1, $2, $3)
     "#,
     )
     .bind(session_type)
     .bind(uid)
+    .bind(name)
     .execute(pool)
     .await?;
     for user in users {

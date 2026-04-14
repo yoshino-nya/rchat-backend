@@ -1,5 +1,8 @@
 use crate::{
-    models::friend::{CreateFriendRequest, DeleteFriendshipRequest, Status},
+    models::{
+        friend::{CreateFriendRequest, DeleteFriendshipRequest, Status},
+        response::ApiResponse,
+    },
     services::friend::{delete_friendship, get_friends_service, query_friend_requests},
 };
 use axum::{
@@ -8,6 +11,8 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use chrono::{DateTime, Utc};
+use serde::Serialize;
 use std::sync::Arc;
 
 use crate::{
@@ -92,5 +97,53 @@ pub async fn delete_friendship_handler(
             Json("Friendship not found".to_string()),
         ),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(e.to_string())),
+    }
+}
+
+#[derive(Debug, sqlx::FromRow, Serialize)]
+pub struct FriendsInfo {
+    pub friend_id: i32,
+    pub friend_name: String,
+    pub created_time: DateTime<Utc>,
+}
+pub async fn get_friends_details(
+    State(state): State<Arc<AppState>>,
+    Path(user_id): Path<i32>,
+) -> impl IntoResponse {
+    let res: Result<Vec<FriendsInfo>, _> = sqlx::query_as(
+        r#"
+        SELECT
+            u.id as friend_id,
+            u.username as friend_name,
+            fs.created_time
+        FROM friendship fs
+        JOIN "user" u ON u.id = CASE
+            WHEN fs.user_low = $1 THEN fs.user_high
+            ELSE fs.user_low
+        END
+        WHERE fs.user_low = $1 OR fs.user_high = $1
+    "#,
+    )
+    .bind(user_id)
+    .fetch_all(&state.pool)
+    .await;
+    match res {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, "获取好友信息失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取好友信息失败".to_string(),
+                    data: None,
+                }),
+            )
+        }
     }
 }

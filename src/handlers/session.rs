@@ -12,13 +12,77 @@ use uuid::Uuid;
 
 use crate::{
     models::{
-        friend::Status,
         response::ApiResponse,
         session::{ChatSessionType, SessionResponse},
     },
-    services::session::find_session_id,
+    services::session::{create_session, find_session_id},
     state::AppState,
 };
+
+pub async fn get_chat_session(
+    State(state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+) -> impl IntoResponse {
+    let res: Result<SessionResponse, _> = sqlx::query_as(
+        r#"
+        SELECT id, type, name, last_msg, uuid FROM chat_session
+        WHERE uuid = $1
+    "#,
+    )
+    .bind(uuid)
+    .fetch_one(&state.pool)
+    .await;
+    match res {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, "获取会话详情失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取会话详情失败".to_string(),
+                    data: None,
+                }),
+            )
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateGroupParmas {
+    pub users: Vec<i32>,
+}
+
+pub async fn create_group_session(
+    State(state): State<Arc<AppState>>,
+    Json(params): Json<CreateGroupParmas>,
+) -> impl IntoResponse {
+    let res = create_session(&state.pool, params.users, ChatSessionType::Group).await;
+    match res {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, "创建群聊失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "创建群聊失败".to_string(),
+                    data: None,
+                }),
+            )
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct QueryParams {
@@ -55,6 +119,7 @@ pub struct SessionListItem {
     pub id: i32,
     pub r#type: ChatSessionType,
     pub uuid: Uuid,
+    pub name: String,
     pub last_msg_id: Option<i32>,
     pub last_msg_sender: Option<String>,
     pub last_msg_time: Option<DateTime<Utc>>,
@@ -73,6 +138,7 @@ pub async fn get_user_sessions(
             cs.type,
             cs.uuid,
             cs.last_msg AS last_msg_id,
+            cs.name,
 
             m.content AS last_msg_content,
             m.created_time AS last_msg_time,
@@ -111,6 +177,49 @@ pub async fn get_user_sessions(
                 Json(ApiResponse {
                     message: "ok".to_string(),
                     data: None,
+                }),
+            )
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PatchParams {
+    name: Option<String>,
+}
+
+pub async fn update_session(
+    State(state): State<Arc<AppState>>,
+    Path(session_id): Path<Uuid>,
+    Json(params): Json<PatchParams>,
+) -> impl IntoResponse {
+    tracing::info!(?params, ?session_id, "更新 session");
+    let res = sqlx::query(
+        r#"
+        UPDATE chat_session
+        SET name = COALESCE($1, name)
+        WHERE uuid = $2
+    "#,
+    )
+    .bind(params.name)
+    .bind(session_id)
+    .execute(&state.pool)
+    .await;
+    match res {
+        Ok(_res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: (),
+            }),
+        ),
+        Err(e) => {
+            tracing::error!(%e, "更新 session 失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "更新 session 失败".to_string(),
+                    data: (),
                 }),
             )
         }

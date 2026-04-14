@@ -39,7 +39,7 @@ pub async fn session_messages_handler(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse {
                     message: "获取聊天记录失败".to_string(),
-                    data: None::<Vec<ChatMessageResponse>>,
+                    data: None,
                 }),
             )
         }

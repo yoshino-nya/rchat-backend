@@ -1,10 +1,10 @@
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{RwLock, broadcast};
-
 use crate::{
-    db::init_db, router::build_router, state::AppState,
+    config::AppConfig,
+    router::build_router,
+    state::{AppState, build_state},
     tasks::spawn_message_dispatcher,
 };
+mod config;
 mod db;
 mod handlers;
 mod models;
@@ -13,19 +13,22 @@ mod services;
 mod state;
 mod tasks;
 mod tracing;
+mod utils;
 
 #[tokio::main]
 pub async fn main() {
     tracing::init();
 
-    let (tx, _) = broadcast::channel(100);
-    let pool = init_db().await;
-    let clients = Arc::new(RwLock::new(HashMap::new()));
-    let state = Arc::new(AppState { pool, tx, clients });
+    dotenv::dotenv().ok();
+
+    let config = AppConfig::load_from_env();
+    let state = build_state(config.clone()).await;
 
     spawn_message_dispatcher(state.clone());
 
     let app = build_router(state);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:4000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&config.bind_addr())
+        .await
+        .unwrap();
     axum::serve(listener, app).await.unwrap();
 }

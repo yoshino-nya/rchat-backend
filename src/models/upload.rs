@@ -4,6 +4,7 @@ use std::fmt;
 pub enum UploadError {
     Io(std::io::Error),
     Multipart(MultipartError),
+    Db(sqlx::Error),
     Nofile,
     InvalidFileType,
 }
@@ -13,6 +14,7 @@ impl fmt::Display for UploadError {
         match self {
             UploadError::Io(e) => write!(f, "IO error: {}", e),
             UploadError::Multipart(e) => write!(f, "Multipart error: {}", e),
+            UploadError::Db(e) => write!(f, "Database error: {}", e),
             UploadError::Nofile => write!(f, "No file uploaded"),
             UploadError::InvalidFileType => write!(f, "Invalid file type"),
         }
@@ -28,5 +30,11 @@ impl From<MultipartError> for UploadError {
 impl From<std::io::Error> for UploadError {
     fn from(value: std::io::Error) -> Self {
         UploadError::Io(value)
+    }
+}
+
+impl From<sqlx::Error> for UploadError {
+    fn from(value: sqlx::Error) -> Self {
+        UploadError::Db(value)
     }
 }

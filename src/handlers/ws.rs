@@ -50,7 +50,7 @@ async fn handle_socket(mut socket: WebSocket, my_username: i32, state: Arc<AppSt
                             Ok(mut create_msg) => {
                                 create_msg.sender_id = my_username;
 
-                                let saved = MessageService::save_message(&state.pool, create_msg.clone()).await;
+                                let saved = MessageService::save_message(&state.pool, create_msg.clone(), &state.config.base_url).await;
                                 tracing::info!(?saved, ?create_msg);
                                 match saved {
                                     Ok(msg) => {

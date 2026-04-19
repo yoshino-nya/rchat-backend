@@ -1,4 +1,6 @@
 use crate::AppState;
+use crate::models::response::ApiResponse;
+use crate::models::user::User;
 use crate::services::user::UserService;
 use axum::{
     Json,
@@ -12,16 +14,33 @@ pub async fn get_user_by_id(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> impl IntoResponse {
-    let res = UserService::find_user_by_id(&state.pool, user_id).await;
+    let res: Result<User, _> = sqlx::query_as(
+        r#"
+        SELECT id, username, avatar FROM "user"
+        WHERE id = $1
+    "#,
+    )
+    .bind(user_id)
+    .fetch_one(&state.pool)
+    .await;
     match res {
+        Ok(info) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(info.to_response(&state.config.base_url)),
+            }),
+        ),
         Err(e) => {
-            // tracing::error!("获取用户信息失败, {}", e);
-            match e {
-                sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, "用户不存在").into_response(),
-                _ => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
-            }
+            tracing::error!(%e, ?user_id, "获取用户信息失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取用户信息失败".to_string(),
+                    data: None,
+                }),
+            )
         }
-        Ok(user) => Json(user).into_response(),
     }
 }
 
@@ -29,16 +48,33 @@ pub async fn get_user_by_name(
     State(state): State<Arc<AppState>>,
     Path(username): Path<String>,
 ) -> impl IntoResponse {
-    let res = UserService::find_user_by_name(&state.pool, username).await;
+    let res: Result<User, _> = sqlx::query_as(
+        r#"
+        SELECT id, username, avatar FROM "user"
+        WHERE username = $1
+    "#,
+    )
+    .bind(&username)
+    .fetch_one(&state.pool)
+    .await;
     match res {
+        Ok(info) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(info.to_response(&state.config.base_url)),
+            }),
+        ),
         Err(e) => {
-            // tracing::error!("获取用户信息失败, {}", e);
-            match e {
-                sqlx::Error::RowNotFound => (StatusCode::NOT_FOUND, "用户不存在").into_response(),
-                _ => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
-            }
+            tracing::error!(%e, ?username, "获取用户信息失败");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: "获取用户信息失败".to_string(),
+                    data: None,
+                }),
+            )
         }
-        Ok(user) => Json(user).into_response(),
     }
 }
 

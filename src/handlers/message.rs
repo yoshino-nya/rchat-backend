@@ -25,7 +25,9 @@ pub async fn session_messages_handler(
     State(state): State<Arc<AppState>>,
     Path(session_id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match MessageService::get_session_messages(&state.pool, session_id).await {
+    match MessageService::get_session_messages(&state.pool, session_id, &state.config.base_url)
+        .await
+    {
         Ok(res) => (
             StatusCode::OK,
             Json(ApiResponse {

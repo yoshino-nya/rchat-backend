@@ -2,9 +2,12 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    routing::{delete, get, patch, post},
+    routing::{delete, get, get_service, patch, post, put},
 };
-use tower_http::cors::{AllowMethods, Any, CorsLayer};
+use tower_http::{
+    cors::{AllowMethods, Any, CorsLayer},
+    services::ServeDir,
+};
 
 use crate::{
     handlers::{
@@ -64,7 +67,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/sessions/{uuid}", get(get_chat_session))
         .route("/api/sessions/group", post(create_group_session))
         .route("/api/users/{id}/friends/details", get(get_friends_details))
-        .route("/upload_avatar", post(update_avatar))
+        .route("/api/users/{id}/avatar", put(update_avatar))
+        .nest_service("/uploads", get_service(ServeDir::new("./uploads")))
         .with_state(state)
         .layer(cors)
 }

@@ -7,6 +7,7 @@ use crate::{
 mod config;
 mod db;
 mod handlers;
+mod middleware;
 mod models;
 mod router;
 mod services;

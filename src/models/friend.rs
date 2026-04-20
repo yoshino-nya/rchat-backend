@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::{FromRow, Type};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Friendship {
@@ -19,12 +20,15 @@ pub enum Status {
     Pending,
 }
 
-#[derive(Debug, Deserialize, Serialize, FromRow)]
+#[derive(Debug, Serialize, FromRow, Deserialize)]
 pub struct FriendRequest {
     pub user_from: i32,
     pub user_to: i32,
     pub status: Status,
     pub created_time: DateTime<Utc>,
+    pub id: i32,
+    pub user_name: String,
+    pub user_avatar: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize, FromRow, Deserialize)]
@@ -34,6 +38,8 @@ pub struct FriendRequestResponse {
     pub status: Status,
     pub created_time: DateTime<Utc>,
     pub id: i32,
+    pub user_name: String,
+    pub user_avatar: String,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,7 +1,10 @@
 // services/friend.rs
 use sqlx::{PgPool, Row};
 
-use crate::models::friend::{CreateFriendRequest, FriendRequestResponse, Status};
+use crate::{
+    models::friend::{CreateFriendRequest, FriendRequest, FriendRequestResponse, Status},
+    utils::avatar_url_from_uuid,
+};
 
 pub async fn save_friend_request(
     pool: &PgPool,
@@ -43,16 +46,44 @@ pub async fn get_friends_service(pool: &PgPool, user_id: i32) -> Result<Vec<i32>
 pub async fn query_friend_requests(
     pool: &PgPool,
     user_id: i32,
+    base_url: &str,
 ) -> Result<Vec<FriendRequestResponse>, sqlx::Error> {
-    let res: Vec<FriendRequestResponse> = sqlx::query_as(
+    let res: Vec<FriendRequest> = sqlx::query_as(
         r#"
-        SELECT id, user_from, user_to, status, created_time from friend_request
-        WHERE user_from = $1 OR user_to = $1
+        SELECT
+            fr.id,
+            fr.user_from,
+            fr.user_to,
+            fr.status,
+            fr.created_time,
+            u.username as user_name,
+            u.avatar as user_avatar
+        FROM friend_request fr
+        JOIN "user" u ON u.id = (
+            CASE
+                WHEN fr.user_from = $1 THEN fr.user_to
+                ELSE fr.user_from
+            END
+        )
+        WHERE fr.user_from = $1 OR fr.user_to = $1
+        ORDER BY fr.created_time DESC
     "#,
     )
     .bind(user_id)
     .fetch_all(pool)
     .await?;
+    let res = res
+        .into_iter()
+        .map(|x| FriendRequestResponse {
+            user_from: x.user_from,
+            user_to: x.user_to,
+            status: x.status,
+            created_time: x.created_time,
+            id: x.id,
+            user_name: x.user_name,
+            user_avatar: avatar_url_from_uuid(base_url, x.user_avatar),
+        })
+        .collect();
     Ok(res)
 }
 

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, sqlx::Type, Serialize, Deserialize)]
+#[derive(Debug, sqlx::Type, Serialize, Deserialize, Clone)]
 #[sqlx(type_name = "chat_session_type", rename_all = "lowercase")]
 pub enum ChatSessionType {
     Private,

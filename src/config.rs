@@ -5,6 +5,7 @@ pub struct AppConfig {
     pub base_url: String,
     pub db_url: String,
     pub port: u16,
+    pub jwt_secret: String,
 }
 
 impl AppConfig {
@@ -13,6 +14,7 @@ impl AppConfig {
             base_url: var("BASE_URL").expect("BASE_URL not set"),
             db_url: var("DB_URL").expect("DB_URL not set"),
             port: var("PORT").unwrap().parse().expect("PORT not set"),
+            jwt_secret: var("JWT_SECRET").expect("JWT_SECRET not set"),
         }
     }
     pub fn bind_addr(&self) -> String {

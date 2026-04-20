@@ -1,16 +1,10 @@
 use crate::AppState;
+use crate::models::response::ApiResponse;
 use crate::models::user::{LoginRequest, RegisterRequest};
 use crate::services::auth::AuthService;
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
 use std::sync::Arc;
-
-#[derive(Serialize)]
-struct LoginResponse {
-    message: String,
-    user_id: Option<i32>,
-    username: Option<String>,
-}
 
 pub async fn register_handler(
     State(state): State<Arc<AppState>>,
@@ -27,36 +21,25 @@ pub async fn login_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<LoginRequest>,
 ) -> impl IntoResponse {
-    let result = AuthService::login(&state.pool, &req).await;
+    let result = AuthService::login(&state.pool, &req, &state.config.jwt_secret).await;
     match result {
-        Ok(id) => (
+        Ok(res) => (
             StatusCode::OK,
-            Json(LoginResponse {
-                message: "Login successful.".to_string(),
-                user_id: Some(id),
-                username: Some(req.username),
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
             }),
         ),
         Err(e) => {
-            tracing::error!("{}", e);
-            match e {
-                sqlx::Error::RowNotFound => (
-                    StatusCode::NOT_FOUND,
-                    Json(LoginResponse {
-                        message: "账号或密码错误".to_string(),
-                        user_id: None,
-                        username: None,
-                    }),
-                ),
-                _ => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(LoginResponse {
-                        message: "Something went wrong".to_string(),
-                        user_id: None,
-                        username: None,
-                    }),
-                ),
-            }
+            let msg = "登录失败".to_string();
+            tracing::error!(%e, ?msg);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: msg,
+                    data: None,
+                }),
+            )
         }
     }
 }

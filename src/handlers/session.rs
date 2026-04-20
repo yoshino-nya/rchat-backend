@@ -11,12 +11,14 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
+    handlers::avatar,
     models::{
         response::ApiResponse,
         session::{ChatSessionType, SessionResponse},
     },
     services::session::{create_session, find_session_id},
     state::AppState,
+    utils::{avatar_url, session_avatar_from_uuid},
 };
 
 pub async fn get_chat_session(
@@ -124,6 +126,20 @@ pub struct SessionListItem {
     pub last_msg_sender: Option<String>,
     pub last_msg_time: Option<DateTime<Utc>>,
     pub last_msg_content: Option<String>,
+    pub avatar: Option<Uuid>,
+}
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct SessionListItemResponse {
+    pub id: i32,
+    pub r#type: ChatSessionType,
+    pub uuid: Uuid,
+    pub name: String,
+    pub last_msg_id: Option<i32>,
+    pub last_msg_sender: Option<String>,
+    pub last_msg_time: Option<DateTime<Utc>>,
+    pub last_msg_content: Option<String>,
+    pub avatar: String,
 }
 
 pub async fn get_user_sessions(
@@ -138,24 +154,30 @@ pub async fn get_user_sessions(
             cs.type,
             cs.uuid,
             cs.last_msg AS last_msg_id,
-            cs.name,
+
+            CASE
+                WHEN cs.type = 'group' THEN cs.name
+                ELSE COALESCE(csm.remark, u_other.username)
+            END AS name,
+
+            CASE 
+                WHEN cs.type = 'group' THEN cs.avatar
+                ELSE u_other.avatar
+            END AS avatar,
 
             m.content AS last_msg_content,
             m.created_time AS last_msg_time,
-
-            u.username AS last_msg_sender
+            u_sender.username AS last_msg_sender
 
         FROM chat_session_members csm
-
-        JOIN chat_session cs
-            ON cs.uuid = csm.session_id
-
-        LEFT JOIN chat_message m
-            ON cs.last_msg = m.id
-
-        LEFT JOIN "user" u
-            ON u.id = m.sender_id
-        
+        JOIN chat_session cs ON cs.uuid = csm.session_id
+        LEFT JOIN chat_message m ON cs.last_msg = m.id
+        LEFT JOIN "user" u_sender ON u_sender.id = m.sender_id
+        LEFT JOIN chat_session_members csm_other
+            ON csm_other.session_id = cs.uuid
+            AND csm_other.user_id != $1
+            AND cs.type = 'private'
+        LEFT JOIN "user" u_other ON u_other.id = csm_other.user_id
         WHERE csm.user_id = $1
     "#,
     )
@@ -163,13 +185,29 @@ pub async fn get_user_sessions(
     .fetch_all(&state.pool)
     .await;
     match res {
-        Ok(res) => (
-            StatusCode::OK,
-            Json(ApiResponse {
-                message: "ok".to_string(),
-                data: Some(res),
-            }),
-        ),
+        Ok(res) => {
+            let res: Vec<SessionListItemResponse> = res
+                .into_iter()
+                .map(|x| SessionListItemResponse {
+                    id: x.id,
+                    r#type: x.r#type.clone(),
+                    uuid: x.uuid,
+                    name: x.name,
+                    last_msg_id: x.last_msg_id,
+                    last_msg_sender: x.last_msg_sender,
+                    last_msg_time: x.last_msg_time,
+                    last_msg_content: x.last_msg_content,
+                    avatar: session_avatar_from_uuid(&state.config.base_url, x.avatar, x.r#type),
+                })
+                .collect();
+            (
+                StatusCode::OK,
+                Json(ApiResponse {
+                    message: "ok".to_string(),
+                    data: Some(res),
+                }),
+            )
+        }
         Err(e) => {
             tracing::error!(%e, "获取用户会话失败");
             (
@@ -210,7 +248,7 @@ pub async fn update_session(
             StatusCode::OK,
             Json(ApiResponse {
                 message: "ok".to_string(),
-                data: (),
+                data: None::<()>,
             }),
         ),
         Err(e) => {
@@ -219,7 +257,7 @@ pub async fn update_session(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ApiResponse {
                     message: "更新 session 失败".to_string(),
-                    data: (),
+                    data: None,
                 }),
             )
         }

@@ -23,6 +23,7 @@ use crate::{
         user::*,
         ws::*,
     },
+    middleware::auth::auth_middleware,
     state::AppState,
 };
 
@@ -69,6 +70,10 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/users/{id}/friends/details", get(get_friends_details))
         .route("/api/users/{id}/avatar", put(update_avatar))
         .nest_service("/uploads", get_service(ServeDir::new("./uploads")))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ))
         .with_state(state)
         .layer(cors)
 }

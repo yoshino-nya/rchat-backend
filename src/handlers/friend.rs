@@ -4,16 +4,18 @@ use crate::{
         response::ApiResponse,
     },
     services::friend::{delete_friendship, get_friends_service, query_friend_requests},
+    utils::avatar_url_from_uuid,
 };
 use axum::{
     Json,
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::{
     AppState,
@@ -37,9 +39,25 @@ pub async fn get_friend_requests(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
 ) -> impl IntoResponse {
-    match query_friend_requests(&state.pool, user_id).await {
-        Ok(res) => (StatusCode::OK, Json(res)).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    match query_friend_requests(&state.pool, user_id, &state.config.base_url).await {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(ApiResponse {
+                message: "ok".to_string(),
+                data: Some(res),
+            }),
+        ),
+        Err(e) => {
+            let msg = "获取好友请求失败".to_string();
+            tracing::error!(%e, ?msg);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ApiResponse {
+                    message: msg,
+                    data: None,
+                }),
+            )
+        }
     }
 }
 
@@ -105,7 +123,16 @@ pub struct FriendsInfo {
     pub friend_id: i32,
     pub friend_name: String,
     pub created_time: DateTime<Utc>,
+    pub friend_avatar: Option<Uuid>,
 }
+#[derive(Debug, sqlx::FromRow, Serialize)]
+pub struct FriendsInfoResponse {
+    pub friend_id: i32,
+    pub friend_name: String,
+    pub created_time: DateTime<Utc>,
+    pub friend_avatar: String,
+}
+
 pub async fn get_friends_details(
     State(state): State<Arc<AppState>>,
     Path(user_id): Path<i32>,
@@ -114,6 +141,7 @@ pub async fn get_friends_details(
         r#"
         SELECT
             u.id as friend_id,
+            u.avatar as friend_avatar,
             u.username as friend_name,
             fs.created_time
         FROM friendship fs
@@ -128,13 +156,24 @@ pub async fn get_friends_details(
     .fetch_all(&state.pool)
     .await;
     match res {
-        Ok(res) => (
-            StatusCode::OK,
-            Json(ApiResponse {
-                message: "ok".to_string(),
-                data: Some(res),
-            }),
-        ),
+        Ok(res) => {
+            let res: Vec<FriendsInfoResponse> = res
+                .into_iter()
+                .map(|f| FriendsInfoResponse {
+                    friend_id: f.friend_id,
+                    friend_name: f.friend_name,
+                    created_time: f.created_time,
+                    friend_avatar: avatar_url_from_uuid(&state.config.base_url, f.friend_avatar),
+                })
+                .collect();
+            (
+                StatusCode::OK,
+                Json(ApiResponse {
+                    message: "ok".to_string(),
+                    data: Some(res),
+                }),
+            )
+        }
         Err(e) => {
             tracing::error!(%e, "获取好友信息失败");
             (

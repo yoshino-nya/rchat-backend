@@ -66,7 +66,11 @@ pub async fn auth_middleware(
         &DecodingKey::from_secret(secret.as_bytes()),
         &Validation::default(),
     ) {
-        Ok(_) => next.run(req).await,
+        Ok(data) => {
+            let mut req = req;
+            req.extensions_mut().insert(data.claims.sub);
+            next.run(req).await
+        }
         Err(e) => {
             tracing::error!(path = %path, error = %e, "JWT decode failed");
             (

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
@@ -11,14 +11,13 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    handlers::avatar,
     models::{
         response::ApiResponse,
         session::{ChatSessionType, SessionResponse},
     },
     services::session::{create_session, find_session_id},
     state::AppState,
-    utils::{avatar_url, session_avatar_from_uuid},
+    utils::session_avatar_from_uuid,
 };
 
 pub async fn get_chat_session(
@@ -229,17 +228,20 @@ pub struct PatchParams {
 pub async fn update_session(
     State(state): State<Arc<AppState>>,
     Path(session_id): Path<Uuid>,
+    Extension(user_id): Extension<i32>,
     Json(params): Json<PatchParams>,
 ) -> impl IntoResponse {
-    tracing::info!(?params, ?session_id, "更新 session");
+    tracing::info!(?params, ?session_id, "更新 reamrk");
+    let remark = params.name.filter(|s| !s.is_empty());
     let res = sqlx::query(
         r#"
-        UPDATE chat_session
-        SET name = COALESCE($1, name)
-        WHERE uuid = $2
+        UPDATE chat_session_members
+        SET remark = $1
+        WHERE user_id = $2 AND session_id = $3
     "#,
     )
-    .bind(params.name)
+    .bind(remark)
+    .bind(user_id)
     .bind(session_id)
     .execute(&state.pool)
     .await;
@@ -260,6 +262,42 @@ pub async fn update_session(
                     data: None,
                 }),
             )
+        }
+    }
+}
+
+pub async fn get_session_name(
+    State(state): State<Arc<AppState>>,
+    Extension(user_id): Extension<i32>,
+    Path(session_uuid): Path<Uuid>,
+) -> impl IntoResponse {
+    // 如果类型是 Private，那么 cs.name 只需要是 NULL
+    let name: Result<String, _> = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(csm.remark, cs.name, u.username)
+        FROM chat_session cs
+        JOIN chat_session_members csm
+            ON cs.uuid = csm.session_id
+            AND csm.user_id = $1
+        LEFT JOIN chat_session_members csm_other
+            ON csm_other.session_id = cs.uuid
+            AND csm_other.user_id != $1
+            AND cs.type = 'private'
+        LEFT JOIN "user" u
+            ON u.id = csm_other.user_id
+        WHERE cs.uuid = $2
+    "#,
+    )
+    .bind(user_id)
+    .bind(session_uuid)
+    .fetch_one(&state.pool)
+    .await;
+    match name {
+        Ok(s) => ApiResponse::ok(s),
+        Err(e) => {
+            let msg = "查找 session 名称失败".to_string();
+            tracing::error!(%e, ?msg);
+            ApiResponse::err(msg)
         }
     }
 }

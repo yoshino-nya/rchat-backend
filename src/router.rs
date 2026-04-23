@@ -17,8 +17,8 @@ use crate::{
         message::*,
         relationship::*,
         session::{
-            create_group_session, get_chat_session, get_session_id, get_user_sessions,
-            update_session,
+            create_group_session, get_chat_session, get_session_id, get_session_name,
+            get_user_sessions, update_session,
         },
         user::*,
         ws::*,
@@ -69,6 +69,7 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/api/sessions/group", post(create_group_session))
         .route("/api/users/{id}/friends/details", get(get_friends_details))
         .route("/api/users/{id}/avatar", put(update_avatar))
+        .route("/api/sessions/{session_uuid}/name", get(get_session_name))
         .nest_service("/uploads", get_service(ServeDir::new("./uploads")))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
